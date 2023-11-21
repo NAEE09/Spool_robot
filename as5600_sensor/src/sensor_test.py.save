@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+
+import rospy
+import smbus2
+from std_msgs.msg import Float32
+
+class AS5600Node:
+   def __init__(self):
+      self.I2C_ADDR = 0x36
+      self.bus = smbus2.SMBus(1)
+
+      rospy.init_node("as5600_node",anonymous=True)
+      self.angle_pub = rospy.Publisher("sensor/angle", Float32, queue_size=1)
+      self.acc_angle_pub = rospy.Publisher("sensor/acc_angle", Float32, queue_size=1)
+      
+      self.last_angle = None
+      self.acc_angle = 0
+
+      self.rate = rospy.Rate(100)
+
+   def read_angle(self):
+      try:
+         read_bytes = self.bus.read_i2c_block_data(self.I2C_ADDR, 0x0C,2)
+         angle = (read_bytes[0]<<8)|read_bytes[1]
+         angle_degrees = angle*360/4096
+         return angle_degrees
+      except Exception as e:
+         rospy.logerr(f"Error AS5600 reading: {e}")
+         return None
+
+  # def read_acc_angle(self,current_angle):
+      #current_angle = self.read_angle()
+      if self.last_angle is not None: 
+         delta = current_angle - self.last_angle
+         if delta > 180:
+            delta -= 360
+         elif delta < -180:
+            delta += 360
+         self.acc_angle += delta
+      self.last_angle = current_angle
+
+   def run(self):
+      while not rospy.is_shutdown():
+         angle = self.read_angle()
+         if angle is not None:
+           self.read_acc_angle(angle)
+
+         self.angle_pub.publish(angle)
+         self.acc_angle_pub.publish(self.acc_angle)
+      self.rate.sleep()
+
+if __name__ == '__main__':
+   try:
+      node = AS5600Node()
+      node.run()
+   except rospy.ROSInterruptException:
+      pass
+

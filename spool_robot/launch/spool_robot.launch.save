@@ -1,0 +1,19 @@
+<launch>
+    <!-- Arguments serial node-->
+    <arg name="port" default="/dev/ttyUSB0" />
+    <arg name="baud" default="57600" />    <!-- Arguments serial node-->
+    <arg name="port" default="/dev/ttyUSB0" />
+    <arg name="baud" default="57600" />
+
+
+    <!-- General launch spool_robot -->
+    <include file="$(find motor_rmd)/launch/rmd_motor_controller.launch" />
+    <include file="$(find package_2)/launch/file_2.launch" />
+
+    <!-- rosserial node -->
+    <node pkg="rosserial_python" type="serial_node.py" name="rosserial_node" output="screen" 
+	<param name="port" value="$(arg port)" />
+        <param name="baud" value="$(arg baud)" />
+    </node>
+   
+</launch>

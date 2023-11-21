@@ -1,0 +1,23 @@
+<launch>
+    <!-- ESP32 rosserial -->
+    <arg name="port" default="/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0" />
+    <arg name="baud" default="57600" />
+    
+
+    <!-- Rosserial node -->
+    <node pkg="rosserial_python" type="serial_node.py" name="$(anon rosserial_node)" output="screen">
+        <param name="port" value="$(arg port)" />
+        <param name="baud" value="$(arg baud)" />
+    </node>
+
+    <!-- AS5600 por I2C -->
+    <node pkg="as5600_sensor" type="sensor_test.py" name="$(anon sensor_as5600_node)" output="screen">
+    </node>
+
+    <!-- Motor RMD -->
+    <arg name="port2" default="/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0" />
+    <include file="$(find motor_rmd)/launch/rmd_motor_controller.launch">
+        <arg name="port" value="$(arg port2)" />
+    </include>    
+
+</launch>
