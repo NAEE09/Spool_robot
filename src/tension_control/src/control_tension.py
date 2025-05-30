@@ -20,6 +20,10 @@ class PIDController:
         self.pid.sample_time = 0.1
         self.pid.output_limits = (self.min_speed,self.max_speed)
 
+        #Sample tension control
+        self.last_tension = None
+        self.last_tension_time = None
+
         # Feedback value tension sensor  (tension force)
         self.feedback_sub = rospy.Subscriber('/spool/tension', Float64, self.tension_callback)
 
@@ -37,34 +41,45 @@ class PIDController:
     def tension_callback(self, msg):
         if not self.motor_ready:
            return
-        current_value = msg.data
-        rospy.logerr(f"*****tension data: {current_value}")
-        error = self.setpoint - current_value
-        vel = self.pid(current_value)
-        vel = int(vel*-1)
-        if vel>-10 and vel<10:
-           vel = 0
-        # send vel motor
-        try:
+        self.last_tension = msg.data
+        self.last_tension_time = rospy.get_time()
+
+    def setpoint_callback(self, msg):
+        self.setpoint = msg.data
+        self.pid.setpoint = self.setpoint
+
+    def run(self):
+       rate = rospy.Rate(10)
+       while not rospy.is_shutdown():
+          self.control_loop()
+          rate.sleep()
+
+    def control_loop(self):
+       if self.last_tension is None:
+          return
+       time_samp = rospy.get_time() - self.last_tension_time
+       if time_samp > 0.5:
+          rospy.logwarn("Tension buffer acumulated")
+          return
+       current_value = self.last_tension
+       error = self.setpoint - current_value
+       vel = int(-1 * self.pid(current_value))
+       if -10 < vel < 10:
+          vel = 0
+       try:
            response = self.set_speed_client(vel)
            rospy.loginfo(f"velocit send: {vel}")
            if response.success:
               self.motor_ready = True
            else:
               self.motor_ready = False
-        except rospy.ServiceException as e:
+       except rospy.ServiceException as e:
            rospy.logerr(f"Failed to call set_speed_client service: {e}")
         # publish error
-        self.error_pub.publish(error)
-        
+       self.error_pub.publish(error)
 
-    def setpoint_callback(self, msg):
-        self.setpoint = msg.data
-        rospy.logerr(f"----Setpoint is: {self.setpoint}")
-        self.pid.setpoint = self.setpoint
 
 if __name__ == '__main__':
     rospy.init_node('pid_controller')
     controller = PIDController()
-    rospy.spin()
-
+    controller.run()
