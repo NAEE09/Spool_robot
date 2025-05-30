@@ -1,0 +1,3 @@
+[submodule "src/Motor_rmd"]
+	path = src/Motor_rmd
+	url = https://github.com/NAEE09/Motor_rmd.git
